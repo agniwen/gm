@@ -1,0 +1,23 @@
+{
+  "name": "gm",
+  "version": "0.1.0",
+  "module": "index.ts",
+  "bin": {
+    "gm": "./index.ts"
+  },
+  "scripts": {
+    "gm": "./index.ts"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@commitlint/config-conventional": "^20.4.2",
+    "@commitlint/lint": "^20.4.2",
+    "openai": "^6.24.0"
+  }
+}
