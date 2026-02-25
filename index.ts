@@ -24,6 +24,20 @@ type GitResult = {
   stderr: string;
 };
 
+type StatusKind = "A" | "M" | "D" | "R" | "C" | "U" | "?" | "!" | "T" | "other";
+
+const ANSI = {
+  reset: "\x1b[0m",
+  dim: "\x1b[2m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  red: "\x1b[31m",
+  cyan: "\x1b[36m",
+  magenta: "\x1b[35m",
+  blue: "\x1b[34m",
+  gray: "\x1b[90m",
+} as const;
+
 function runGit(args: string[]): GitResult {
   const proc = Bun.spawnSync(["git", ...args], {
     cwd: process.cwd(),
@@ -98,6 +112,123 @@ async function copyToClipboard(text: string): Promise<void> {
 
 function normalizeMessage(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
+}
+
+function statusKindsFromCode(code: string): StatusKind[] {
+  if (code === "??") return ["?"];
+  if (code === "!!") return ["!"];
+
+  const chars = code.split("").filter((char) => char !== " ");
+  const kinds: StatusKind[] = [];
+  const preferredOrder: StatusKind[] = ["A", "M", "D", "R", "C", "U", "T"];
+
+  for (const kind of preferredOrder) {
+    if (chars.includes(kind)) {
+      kinds.push(kind);
+    }
+  }
+
+  if (kinds.length > 0) return kinds;
+  return ["other"];
+}
+
+function detectStatusKind(code: string): StatusKind {
+  const kinds = statusKindsFromCode(code);
+  const priority: StatusKind[] = ["D", "U", "M", "A", "R", "C", "T", "?", "!", "other"];
+
+  for (const kind of priority) {
+    if (kinds.includes(kind)) return kind;
+  }
+
+  return "other";
+}
+
+function colorForStatus(kind: StatusKind): string {
+  switch (kind) {
+    case "A":
+      return ANSI.green;
+    case "M":
+      return ANSI.yellow;
+    case "D":
+      return ANSI.red;
+    case "R":
+    case "C":
+      return ANSI.cyan;
+    case "U":
+      return ANSI.magenta;
+    case "?":
+      return ANSI.blue;
+    case "!":
+      return ANSI.gray;
+    case "T":
+      return ANSI.yellow;
+    default:
+      return ANSI.reset;
+  }
+}
+
+function formatStatusLabel(kinds: StatusKind[]): string {
+  const labels = kinds.map((kind) => {
+    switch (kind) {
+      case "A":
+        return "added";
+      case "M":
+        return "modified";
+      case "D":
+        return "deleted";
+      case "R":
+        return "renamed";
+      case "C":
+        return "copied";
+      case "U":
+        return "unmerged";
+      case "?":
+        return "untracked";
+      case "!":
+        return "ignored";
+      case "T":
+        return "typechange";
+      default:
+        return "changed";
+    }
+  });
+
+  return labels.join("+");
+}
+
+function renderStatusLine(line: string, useColor: boolean): string {
+  const code = line.slice(0, 2);
+  const filePath = line.length > 3 ? line.slice(3).trim() : "(unknown)";
+  const kinds = statusKindsFromCode(code);
+  const kind = detectStatusKind(code);
+  const label = formatStatusLabel(kinds).padEnd(10, " ");
+  const codeLabel = `[${code}]`;
+
+  if (!useColor) {
+    return `${label} ${codeLabel} ${filePath}`;
+  }
+
+  const color = colorForStatus(kind);
+  return `${color}${label}${ANSI.reset} ${ANSI.dim}${codeLabel}${ANSI.reset} ${filePath}`;
+}
+
+function printStatusSummary(statusText: string): void {
+  const lines = statusText
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return;
+  }
+
+  const useColor = Boolean(process.stdout.isTTY);
+
+  console.log("\nChanged files:");
+  for (const line of lines) {
+    console.log(`- ${renderStatusLine(line, useColor)}`);
+  }
+  console.log("");
 }
 
 function cleanupModelMessage(raw: string): string {
@@ -218,6 +349,8 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  printStatusSummary(status.stdout);
+
   const stagedDiff = runGit(["diff", "--cached", "--no-color", "--no-ext-diff"]);
   const unstagedDiff = runGit(["diff", "--no-color", "--no-ext-diff"]);
 
@@ -250,16 +383,15 @@ async function main(): Promise<void> {
     console.error(`Failed to generate commit message: ${reason}`);
     process.exit(1);
   }
-
+  const escaped = shellEscapeDoubleQuoted(message);
   try {
-    await copyToClipboard(message);
+    await copyToClipboard(`git commit -m "${escaped}"`);
     console.log("Copied commit message to clipboard.");
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.warn(`Warning: failed to copy message to clipboard: ${reason}`);
   }
 
-  const escaped = shellEscapeDoubleQuoted(message);
   console.log("\nSuggested command:");
   console.log("");
   console.log(`git commit -m "${escaped}"`);

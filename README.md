@@ -44,6 +44,8 @@ By default, it also copies the generated commit message to your clipboard.
 - Windows uses `clip`
 - Linux tries `wl-copy` first, then `xclip`
 
+Before generating the message, it prints a colorized file-change summary from `git status --short` (for example: added, modified, deleted, renamed, untracked).
+
 Example output:
 
 ```bash
