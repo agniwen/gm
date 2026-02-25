@@ -32,6 +32,18 @@ After publishing/installing globally, run in any git repo:
 gm
 ```
 
+## CLI options
+
+- `--lang, -l <en|zh>`: set CLI output language and generated commit subject language (`en` by default)
+- `--help, -h`: show usage and available options
+
+Examples:
+
+```bash
+gm --lang zh
+gm --help
+```
+
 It prints a suggested command like:
 
 ```bash
