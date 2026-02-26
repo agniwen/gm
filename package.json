@@ -19,6 +19,7 @@
   "dependencies": {
     "@commitlint/config-conventional": "^20.4.2",
     "@commitlint/lint": "^20.4.2",
+    "@opentui/core": "^0.1.83",
     "openai": "^6.24.0"
   }
 }
