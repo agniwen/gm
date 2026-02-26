@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "module": "index.ts",
   "bin": {
-    "gm": "./index.ts"
+    "gm": "./dist/gm"
   },
   "scripts": {
-    "gm": "./index.ts"
+    "gm": "bun ./index.ts",
+    "build": "bun build ./index.ts --compile --outfile ./dist/gm && rm -f ./*.bun-build .*.bun-build *.bun-build"
   },
   "type": "module",
   "devDependencies": {
