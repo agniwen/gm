@@ -1,6 +1,6 @@
 {
   "name": "gm",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "module": "index.ts",
   "bin": {
     "gm": "./dist/gm"
@@ -20,6 +20,8 @@
     "@commitlint/config-conventional": "^20.4.2",
     "@commitlint/lint": "^20.4.2",
     "@opentui/core": "^0.1.83",
+    "cac": "^7.0.0",
+    "gm": ".",
     "openai": "^6.24.0"
   }
 }

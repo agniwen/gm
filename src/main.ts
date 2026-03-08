@@ -4,6 +4,7 @@ import { generateCommitMessage } from "./commit-message";
 import { runGit } from "./git";
 import { MESSAGES } from "./messages";
 import { shellEscapeDoubleQuoted, truncate } from "./text";
+import packageJson from "../package.json";
 
 const DIFF_CHAR_LIMIT = 20_000;
 
@@ -20,6 +21,11 @@ export async function main(): Promise<void> {
 
   if (options.help) {
     printHelp(options.lang);
+    return;
+  }
+
+  if (options.version) {
+    console.log(packageJson.version);
     return;
   }
 

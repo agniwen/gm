@@ -1,52 +1,92 @@
-import { DEFAULT_LANG, MESSAGES, type Lang, type MessageKey, isLang } from "./messages";
+import cac from "cac";
+
+import { DEFAULT_LANG, MESSAGES, type Lang, isLang } from "./messages";
 
 export type CliOptions = {
   lang: Lang;
   help: boolean;
+  version: boolean;
 };
 
 export type ParseResult = { options: CliOptions } | { error: string; lang: Lang };
 
-type CliOptionDefinition = {
-  long: string;
-  short?: string;
-  valueName?: string;
-  expectsValue: boolean;
-  descriptionKey: MessageKey;
-  onSet: (options: CliOptions, value?: string) => { errorKey?: MessageKey };
-};
+function createCli(lang: Lang) {
+  const m = MESSAGES[lang];
+  const cli = cac("gm");
 
-const CLI_OPTION_DEFINITIONS: CliOptionDefinition[] = [
-  {
-    long: "lang",
-    short: "l",
-    valueName: "en|zh",
-    expectsValue: true,
-    descriptionKey: "optionLang",
-    onSet: (options, value) => {
-      if (!value) {
-        return { errorKey: "missingLang" };
+  cli.usage("[--lang <en|zh>] [--help] [--version]");
+  cli.option("-l, --lang <lang>", m.optionLang, { default: DEFAULT_LANG });
+  cli.option("-h, --help", m.optionHelp);
+  cli.option("-v, --version", m.optionVersion);
+  cli.globalCommand.helpCallback = (sections) => {
+    return sections
+      .filter((section) => section.title !== "Commands" && section.title !== "For more info, run any command with the `--help` flag")
+      .map((section) => {
+        if (!section.title) {
+          return section;
+        }
+
+        if (section.title === "Usage") {
+          return { ...section, title: m.usageTitle.replace(/:$/, "") };
+        }
+
+        if (section.title === "Options") {
+          return { ...section, title: m.optionsTitle.replace(/:$/, "") };
+        }
+
+        return section;
+      });
+  };
+  cli.command("").action(() => {});
+
+  return cli;
+}
+
+function resolveErrorLang(argv: string[]): Lang {
+  let lang = DEFAULT_LANG;
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (!arg) continue;
+
+    if (arg.startsWith("--lang=")) {
+      const value = arg.slice("--lang=".length);
+      if (isLang(value)) {
+        lang = value;
       }
+      continue;
+    }
 
-      if (!isLang(value)) {
-        return { errorKey: "invalidLang" };
+    if (arg === "--lang" || arg === "-l") {
+      const value = argv[i + 1];
+      if (value && !value.startsWith("-") && isLang(value)) {
+        lang = value;
+        i += 1;
       }
+    }
+  }
 
-      options.lang = value;
-      return {};
-    },
-  },
-  {
-    long: "help",
-    short: "h",
-    expectsValue: false,
-    descriptionKey: "optionHelp",
-    onSet: (options) => {
-      options.help = true;
-      return {};
-    },
-  },
-];
+  return lang;
+}
+
+function formatCliError(message: string, lang: Lang): string {
+  const m = MESSAGES[lang];
+  const unknownOptionMatch = /^Unknown option `(.+)`$/.exec(message);
+  if (unknownOptionMatch) {
+    return `${m.unknownOption} ${unknownOptionMatch[1]}`;
+  }
+
+  if (message.includes("`-l, --lang <lang>` value is missing")) {
+    return m.missingLang;
+  }
+
+  const unusedArgsMatch = /^Unused args: `(.+)`$/.exec(message);
+  if (unusedArgsMatch) {
+    return `${m.unknownOption} ${unusedArgsMatch[1]}`;
+  }
+
+  return message;
+}
 
 export function getCliArgv(): string[] {
   const argv = Bun.argv;
@@ -63,95 +103,45 @@ export function getCliArgv(): string[] {
   return argv.slice(1);
 }
 
-function formatOptionUsage(definition: CliOptionDefinition): string {
-  const aliases = [`--${definition.long}`];
-  if (definition.short) {
-    aliases.push(`-${definition.short}`);
-  }
-
-  const suffix = definition.expectsValue && definition.valueName ? ` <${definition.valueName}>` : "";
-  return `${aliases.join(", ")}${suffix}`;
-}
-
-function createOptionLookup(definitions: CliOptionDefinition[]): Map<string, CliOptionDefinition> {
-  const lookup = new Map<string, CliOptionDefinition>();
-
-  for (const definition of definitions) {
-    lookup.set(`--${definition.long}`, definition);
-    if (definition.short) {
-      lookup.set(`-${definition.short}`, definition);
-    }
-  }
-
-  return lookup;
-}
-
 export function parseCliOptions(argv: string[]): ParseResult {
-  const options: CliOptions = {
-    lang: DEFAULT_LANG,
-    help: false,
-  };
+  const lang = resolveErrorLang(argv);
+  const cli = createCli(lang);
 
-  const optionLookup = createOptionLookup(CLI_OPTION_DEFINITIONS);
-
-  for (let i = 0; i < argv.length; i += 1) {
-    const rawArg = argv[i];
-    if (!rawArg) continue;
-
-    let optionToken = rawArg;
-    let inlineValue: string | undefined;
-
-    if (rawArg.startsWith("--")) {
-      const equalsIndex = rawArg.indexOf("=");
-      if (equalsIndex !== -1) {
-        optionToken = rawArg.slice(0, equalsIndex);
-        inlineValue = rawArg.slice(equalsIndex + 1);
-      }
-    }
-
-    const definition = optionLookup.get(optionToken);
-    if (!definition) {
-      return { error: `${MESSAGES[options.lang].unknownOption} ${rawArg}`, lang: options.lang };
-    }
-
-    if (!definition.expectsValue && inlineValue !== undefined) {
-      return {
-        error: `${MESSAGES[options.lang].unexpectedOptionValue} ${rawArg}`,
-        lang: options.lang,
-      };
-    }
-
-    let value = inlineValue;
-    if (definition.expectsValue && value === undefined) {
-      const nextArg = argv[i + 1];
-      if (nextArg && !nextArg.startsWith("-")) {
-        value = nextArg;
-        i += 1;
-      }
-    }
-
-    const result = definition.onSet(options, value);
-    if (result.errorKey) {
-      return { error: MESSAGES[options.lang][result.errorKey], lang: options.lang };
-    }
+  if (argv.some((arg) => arg.startsWith("--help="))) {
+    return {
+      error: `${MESSAGES[lang].unexpectedOptionValue} ${argv.find((arg) => arg.startsWith("--help="))}`,
+      lang,
+    };
   }
 
-  return { options };
+  if (argv.some((arg) => arg.startsWith("--version="))) {
+    return {
+      error: `${MESSAGES[lang].unexpectedOptionValue} ${argv.find((arg) => arg.startsWith("--version="))}`,
+      lang,
+    };
+  }
+
+  try {
+    const parsed = cli.parse(["bun", "gm", ...argv], { run: false });
+    cli.runMatchedCommand();
+
+    if (!isLang(parsed.options.lang)) {
+      return { error: MESSAGES[lang].invalidLang, lang };
+    }
+
+    return {
+      options: {
+        lang: parsed.options.lang,
+        help: Boolean(parsed.options.help),
+        version: Boolean(parsed.options.version),
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: formatCliError(message, lang), lang };
+  }
 }
 
 export function printHelp(lang: Lang): void {
-  const m = MESSAGES[lang];
-  const optionLines = CLI_OPTION_DEFINITIONS.map((definition) => ({
-    usage: formatOptionUsage(definition),
-    description: m[definition.descriptionKey],
-  }));
-  const usageWidth = optionLines.reduce((max, line) => Math.max(max, line.usage.length), 0);
-
-  console.log(m.usageTitle);
-  console.log(`  ${m.usageLine}`);
-  console.log("");
-  console.log(m.optionsTitle);
-  for (const line of optionLines) {
-    console.log(`  ${line.usage.padEnd(usageWidth, " ")}  ${line.description}`);
-  }
+  createCli(lang).outputHelp();
 }

@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import type { Lang } from "./messages";
 import { cleanupModelMessage } from "./text";
 
-const MODEL = process.env.OPEN_AI_MODEL ?? "gpt-4.1-mini";
+const MODEL = process.env.GM_OPEN_AI_MODEL ?? "gpt-4.1-mini";
 const COMMITLINT_RULES = commitlintConventional.rules;
 const HEADER_MAX_LENGTH =
   COMMITLINT_RULES["header-max-length"]?.[2] &&
@@ -48,16 +48,14 @@ function buildSystemPrompt(lang: Lang): string {
 
 export async function generateCommitMessage(diffText: string, lang: Lang): Promise<string> {
   const apiKey =
-    process.env.OPEN_AI_KEY ??
-    process.env.OPEN_AI_API_KEY ??
-    process.env.OPENAI_API_KEY;
+    process.env.GM_OPEN_AI_API_KEY
   if (!apiKey) {
     throw new Error("Missing API key. Set OPEN_AI_KEY or OPEN_AI_API_KEY in environment.");
   }
 
   const client = new OpenAI({
     apiKey,
-    baseURL: process.env.OPEN_AI_API_URL,
+    baseURL: process.env.GM_OPEN_AI_API_URL,
   });
 
   const systemPrompt = buildSystemPrompt(lang);

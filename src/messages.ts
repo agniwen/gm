@@ -6,9 +6,10 @@ export const MESSAGES = {
   en: {
     usageTitle: "Usage:",
     optionsTitle: "Options:",
-    usageLine: "gm [--lang <en|zh>] [--help]",
+    usageLine: "gm [--lang <en|zh>] [--help] [--version]",
     optionLang: "CLI output language and commit subject language.",
     optionHelp: "Show this help message.",
+    optionVersion: "Show the current version.",
     unknownOption: "Unknown option:",
     missingLang: "Missing value for --lang. Use en or zh.",
     invalidLang: "Invalid value for --lang. Use en or zh.",
@@ -27,9 +28,10 @@ export const MESSAGES = {
   zh: {
     usageTitle: "用法:",
     optionsTitle: "参数:",
-    usageLine: "gm [--lang <en|zh>] [--help]",
+    usageLine: "gm [--lang <en|zh>] [--help] [--version]",
     optionLang: "CLI 输出语言和 commit subject 语言。",
     optionHelp: "显示帮助信息。",
+    optionVersion: "显示当前版本。",
     unknownOption: "未知参数:",
     missingLang: "--lang 缺少值，可选 en 或 zh。",
     invalidLang: "--lang 的值无效，可选 en 或 zh。",
