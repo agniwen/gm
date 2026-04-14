@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+
 export type GitResult = {
   ok: boolean;
   stdout: string;
@@ -5,15 +7,14 @@ export type GitResult = {
 };
 
 export function runGit(args: string[]): GitResult {
-  const proc = Bun.spawnSync(["git", ...args], {
+  const proc = spawnSync("git", args, {
     cwd: process.cwd(),
-    stdout: "pipe",
-    stderr: "pipe",
+    encoding: "utf8",
   });
 
   return {
-    ok: proc.exitCode === 0,
-    stdout: proc.stdout.toString(),
-    stderr: proc.stderr.toString(),
+    ok: proc.status === 0,
+    stdout: proc.stdout ?? "",
+    stderr: proc.stderr ?? "",
   };
 }

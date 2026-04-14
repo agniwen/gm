@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+
 import { copyToClipboard } from "./clipboard";
 import { getCliArgv, parseCliOptions, printHelp } from "./cli";
 import { generateCommitMessage } from "./commit-message";
@@ -8,7 +10,11 @@ import packageJson from "../package.json";
 
 const DIFF_CHAR_LIMIT = 20_000;
 
-export async function main(): Promise<void> {
+export type MainOptions = {
+  autoCommit?: boolean;
+};
+
+export async function main(opts: MainOptions = {}): Promise<void> {
   const parsed = parseCliOptions(getCliArgv());
   if ("error" in parsed) {
     console.error(parsed.error);
@@ -67,7 +73,11 @@ export async function main(): Promise<void> {
     DIFF_CHAR_LIMIT,
   );
 
-  console.log(m.generating);
+  const pipedOutput = !process.stdout.isTTY;
+
+  if (!pipedOutput) {
+    console.log(m.generating);
+  }
 
   let message = "";
   try {
@@ -76,6 +86,20 @@ export async function main(): Promise<void> {
     const reason = error instanceof Error ? error.message : String(error);
     console.error(`${m.generateFail} ${reason}`);
     process.exit(1);
+  }
+
+  if (opts.autoCommit) {
+    console.error(`${m.commitRunning} ${message}`);
+    const proc = spawnSync("git", ["commit", "-m", message], {
+      cwd: process.cwd(),
+      stdio: "inherit",
+    });
+    process.exit(proc.status ?? 1);
+  }
+
+  if (pipedOutput) {
+    process.stdout.write(`${message}\n`);
+    return;
   }
 
   const escaped = shellEscapeDoubleQuoted(message);

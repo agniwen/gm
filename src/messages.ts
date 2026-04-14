@@ -24,6 +24,7 @@ export const MESSAGES = {
     copied: "Copied command to clipboard.",
     copyWarn: "Warning: failed to copy command to clipboard:",
     command: "Suggested command",
+    commitRunning: "Running git commit with message:",
   },
   zh: {
     usageTitle: "用法:",
@@ -46,6 +47,7 @@ export const MESSAGES = {
     copied: "已复制命令到剪贴板。",
     copyWarn: "警告: 复制到剪贴板失败:",
     command: "建议命令",
+    commitRunning: "正在执行 git commit，提交信息：",
   },
 } as const;
 

@@ -89,18 +89,7 @@ function formatCliError(message: string, lang: Lang): string {
 }
 
 export function getCliArgv(): string[] {
-  const argv = Bun.argv;
-  if (argv.length === 0) {
-    return [];
-  }
-
-  const first = argv[0] ?? "";
-  const looksLikeBunRuntime = first.endsWith("/bun") || first === "bun";
-  if (looksLikeBunRuntime) {
-    return argv.slice(2);
-  }
-
-  return argv.slice(1);
+  return process.argv.slice(2);
 }
 
 export function parseCliOptions(argv: string[]): ParseResult {
